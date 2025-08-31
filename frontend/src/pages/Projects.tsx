@@ -12,21 +12,23 @@ import {
   UpdateProjectRequest,
 } from '../services/projectService';
 import { useAuthStore } from '../state/authStore';
+import { SearchAndFilter } from '../components/SearchAndFilter';
 
 const statusColors = {
   Active: 'bg-green-100 text-green-800',
   Completed: 'bg-blue-100 text-blue-800',
-  'On Hold': 'bg-yellow-100 text-yellow-800',
+  OnHold: 'bg-yellow-100 text-yellow-800',
 };
 
 const priorityColors = {
-  High: 'bg-red-100 text-red-800',
-  Medium: 'bg-yellow-100 text-yellow-800',
   Low: 'bg-gray-100 text-gray-800',
+  Medium: 'bg-yellow-100 text-yellow-800',
+  High: 'bg-red-100 text-red-800',
 };
 
 export const Projects: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -40,15 +42,12 @@ export const Projects: React.FC = () => {
     createdById: '',
   });
   const [submitting, setSubmitting] = useState(false);
-
   const { user } = useAuthStore();
 
-  // Load projects on component mount
   useEffect(() => {
     loadProjects();
   }, []);
 
-  // Set user ID when user is available
   useEffect(() => {
     if (user) {
       setFormData((prev) => ({ ...prev, createdById: user.id }));
@@ -59,14 +58,50 @@ export const Projects: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await projectService.getAll();
-      setProjects(data);
+      const projectsData = await projectService.getAll();
+      setProjects(projectsData);
+      setFilteredProjects(projectsData);
     } catch (err) {
       setError('Failed to load projects');
       console.error('Error loading projects:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = (query: string) => {
+    const filtered = projects.filter(
+      (project) =>
+        project.name.toLowerCase().includes(query.toLowerCase()) ||
+        project.description.toLowerCase().includes(query.toLowerCase())
+    );
+    setFilteredProjects(filtered);
+  };
+
+  const handleFilter = (filters: Record<string, string>) => {
+    let filtered = projects;
+
+    if (filters.status) {
+      filtered = filtered.filter(
+        (project) => project.status === filters.status
+      );
+    }
+
+    if (filters.priority) {
+      filtered = filtered.filter(
+        (project) => project.priority === filters.priority
+      );
+    }
+
+    if (filters.startDate) {
+      const filterDate = new Date(filters.startDate);
+      filtered = filtered.filter((project) => {
+        const projectDate = new Date(project.startDate);
+        return projectDate >= filterDate;
+      });
+    }
+
+    setFilteredProjects(filtered);
   };
 
   const handleCreateProject = () => {
@@ -88,8 +123,7 @@ export const Projects: React.FC = () => {
       description: project.description,
       status: project.status,
       priority: project.priority,
-      startDate: project.startDate,
-      endDate: project.endDate,
+      startDate: new Date(project.startDate).toISOString().split('T')[0],
       createdById: project.createdBy,
     });
     setSelectedProject(project);
@@ -101,6 +135,7 @@ export const Projects: React.FC = () => {
       try {
         await projectService.delete(projectId);
         setProjects(projects.filter((p) => p.id !== projectId));
+        setFilteredProjects(filteredProjects.filter((p) => p.id !== projectId));
       } catch (err) {
         setError('Failed to delete project');
         console.error('Error deleting project:', err);
@@ -124,20 +159,20 @@ export const Projects: React.FC = () => {
           status: formData.status,
           priority: formData.priority,
           startDate: formData.startDate,
-          endDate: formData.endDate,
         };
         await projectService.update(selectedProject.id, updateData);
 
         // Update local state
-        setProjects(
-          projects.map((p) =>
-            p.id === selectedProject.id ? { ...p, ...updateData } : p
-          )
+        const updatedProjects = projects.map((p) =>
+          p.id === selectedProject.id ? { ...p, ...updateData } : p
         );
+        setProjects(updatedProjects);
+        setFilteredProjects(updatedProjects);
       } else {
         // Create new project
         const newProject = await projectService.create(formData);
         setProjects([...projects, newProject]);
+        setFilteredProjects([...filteredProjects, newProject]);
       }
 
       setShowCreateModal(false);
@@ -171,19 +206,41 @@ export const Projects: React.FC = () => {
             <p className='mt-2 text-gray-600'>Loading projects...</p>
           </div>
         </div>
-        <div className='card'>
-          <div className='animate-pulse'>
-            <div className='h-4 bg-gray-200 rounded w-1/4 mb-4'></div>
-            <div className='space-y-3'>
-              {[1, 2, 3].map((i) => (
-                <div key={i} className='h-12 bg-gray-200 rounded'></div>
-              ))}
+        <div className='space-y-4'>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className='card'>
+              <div className='animate-pulse'>
+                <div className='h-4 bg-gray-200 rounded w-3/4 mb-4'></div>
+                <div className='space-y-3'>
+                  <div className='h-3 bg-gray-200 rounded w-1/2'></div>
+                  <div className='h-3 bg-gray-200 rounded w-2/3'></div>
+                  <div className='h-3 bg-gray-200 rounded w-1/3'></div>
+                </div>
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
     );
   }
+
+  const filterOptions = {
+    status: [
+      { label: 'Active', value: 'Active' },
+      { label: 'Completed', value: 'Completed' },
+      { label: 'On Hold', value: 'OnHold' },
+    ],
+    priority: [
+      { label: 'Low', value: 'Low' },
+      { label: 'Medium', value: 'Medium' },
+      { label: 'High', value: 'High' },
+    ],
+    startDate: [
+      { label: 'This Week', value: 'this-week' },
+      { label: 'This Month', value: 'this-month' },
+      { label: 'Last 3 Months', value: 'last-3-months' },
+    ],
+  };
 
   return (
     <div className='space-y-6'>
@@ -192,7 +249,7 @@ export const Projects: React.FC = () => {
         <div>
           <h1 className='text-3xl font-bold text-gray-900'>Projects</h1>
           <p className='mt-2 text-gray-600'>
-            Manage your projects and track their progress.
+            Manage and track your projects with advanced filtering and search.
           </p>
         </div>
         <button
@@ -212,18 +269,33 @@ export const Projects: React.FC = () => {
       )}
 
       {/* Stats */}
-      <div className='grid grid-cols-1 gap-6 sm:grid-cols-3'>
+      <div className='grid grid-cols-1 gap-6 sm:grid-cols-4'>
         <div className='card'>
           <div className='flex items-center'>
             <div className='flex-shrink-0'>
               <div className='h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center'>
-                <span className='text-white font-medium'>A</span>
+                <span className='text-white font-medium'>T</span>
               </div>
             </div>
             <div className='ml-4'>
               <p className='text-sm font-medium text-gray-500'>
-                Active Projects
+                Total Projects
               </p>
+              <p className='text-2xl font-semibold text-gray-900'>
+                {projects.length}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className='card'>
+          <div className='flex items-center'>
+            <div className='flex-shrink-0'>
+              <div className='h-8 w-8 bg-green-500 rounded-full flex items-center justify-center'>
+                <span className='text-white font-medium'>A</span>
+              </div>
+            </div>
+            <div className='ml-4'>
+              <p className='text-sm font-medium text-gray-500'>Active</p>
               <p className='text-2xl font-semibold text-gray-900'>
                 {projects.filter((p) => p.status === 'Active').length}
               </p>
@@ -233,7 +305,7 @@ export const Projects: React.FC = () => {
         <div className='card'>
           <div className='flex items-center'>
             <div className='flex-shrink-0'>
-              <div className='h-8 w-8 bg-green-500 rounded-full flex items-center justify-center'>
+              <div className='h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center'>
                 <span className='text-white font-medium'>C</span>
               </div>
             </div>
@@ -262,46 +334,25 @@ export const Projects: React.FC = () => {
         </div>
       </div>
 
+      {/* Search and Filter */}
+      <SearchAndFilter
+        onSearch={handleSearch}
+        onFilter={handleFilter}
+        searchPlaceholder='Search projects by name or description...'
+        filterOptions={filterOptions}
+      />
+
       {/* Projects List */}
-      <div className='card'>
-        <div className='overflow-x-auto'>
-          <table className='min-w-full divide-y divide-gray-200'>
-            <thead className='bg-gray-50'>
-              <tr>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Project
-                </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Status
-                </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Priority
-                </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Created By
-                </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Timeline
-                </th>
-                <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className='bg-white divide-y divide-gray-200'>
-              {projects.map((project) => (
-                <tr key={project.id} className='hover:bg-gray-50'>
-                  <td className='px-6 py-4 whitespace-nowrap'>
-                    <div>
-                      <div className='text-sm font-medium text-gray-900'>
-                        {project.name}
-                      </div>
-                      <div className='text-sm text-gray-500'>
-                        {project.description}
-                      </div>
-                    </div>
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap'>
+      <div className='space-y-4'>
+        {filteredProjects.map((project) => (
+          <div key={project.id} className='card'>
+            <div className='flex items-start justify-between'>
+              <div className='flex-1'>
+                <div className='flex items-center justify-between mb-2'>
+                  <h3 className='text-lg font-medium text-gray-900'>
+                    {project.name}
+                  </h3>
+                  <div className='flex space-x-2'>
                     <span
                       className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         statusColors[
@@ -311,8 +362,6 @@ export const Projects: React.FC = () => {
                     >
                       {project.status}
                     </span>
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap'>
                     <span
                       className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                         priorityColors[
@@ -322,56 +371,51 @@ export const Projects: React.FC = () => {
                     >
                       {project.priority}
                     </span>
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap'>
-                    <div className='text-sm text-gray-900'>
-                      {project.createdBy}
-                    </div>
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap'>
-                    <div className='text-sm text-gray-900'>
-                      {new Date(project.startDate).toLocaleDateString()} -{' '}
-                      {project.endDate
-                        ? new Date(project.endDate).toLocaleDateString()
-                        : 'Ongoing'}
-                    </div>
-                  </td>
-                  <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
-                    <div className='flex space-x-2'>
-                      <button
-                        onClick={() => setSelectedProject(project)}
-                        className='text-blue-600 hover:text-blue-900'
-                        title='View Details'
-                      >
-                        <EyeIcon className='h-4 w-4' />
-                      </button>
-                      <button
-                        onClick={() => handleEditProject(project)}
-                        className='text-indigo-600 hover:text-indigo-900'
-                        title='Edit Project'
-                      >
-                        <PencilIcon className='h-4 w-4' />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProject(project.id)}
-                        className='text-red-600 hover:text-red-900'
-                        title='Delete Project'
-                      >
-                        <TrashIcon className='h-4 w-4' />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {projects.length === 0 && (
-            <div className='text-center py-8 text-gray-500'>
-              No projects found. Create your first project to get started.
+                  </div>
+                </div>
+                <p className='text-gray-600 mb-3'>{project.description}</p>
+                <div className='flex items-center space-x-4 text-sm text-gray-500'>
+                  <span>
+                    Start: {new Date(project.startDate).toLocaleDateString()}
+                  </span>
+                  {project.endDate && (
+                    <span>
+                      End: {new Date(project.endDate).toLocaleDateString()}
+                    </span>
+                  )}
+                  <span>
+                    Created: {new Date(project.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+              <div className='flex space-x-2 ml-4'>
+                <button
+                  onClick={() => handleEditProject(project)}
+                  className='text-indigo-600 hover:text-indigo-900'
+                  title='Edit Project'
+                >
+                  <PencilIcon className='h-4 w-4' />
+                </button>
+                <button
+                  onClick={() => handleDeleteProject(project.id)}
+                  className='text-red-600 hover:text-red-900'
+                  title='Delete Project'
+                >
+                  <TrashIcon className='h-4 w-4' />
+                </button>
+              </div>
             </div>
-          )}
-        </div>
+          </div>
+        ))}
       </div>
+
+      {filteredProjects.length === 0 && (
+        <div className='text-center py-8 text-gray-500'>
+          {projects.length === 0
+            ? 'No projects found. Create your first project to get started.'
+            : 'No projects match your search criteria.'}
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       {showCreateModal && (
@@ -405,72 +449,55 @@ export const Projects: React.FC = () => {
                     name='description'
                     value={formData.description}
                     onChange={handleInputChange}
-                    className='input-field'
                     rows={3}
+                    className='input-field'
                   />
                 </div>
 
-                <div className='grid grid-cols-2 gap-4'>
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                      Status
-                    </label>
-                    <select
-                      name='status'
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className='input-field'
-                    >
-                      <option value='Active'>Active</option>
-                      <option value='Completed'>Completed</option>
-                      <option value='On Hold'>On Hold</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                      Priority
-                    </label>
-                    <select
-                      name='priority'
-                      value={formData.priority}
-                      onChange={handleInputChange}
-                      className='input-field'
-                    >
-                      <option value='Low'>Low</option>
-                      <option value='Medium'>Medium</option>
-                      <option value='High'>High</option>
-                    </select>
-                  </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>
+                    Status
+                  </label>
+                  <select
+                    name='status'
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className='input-field'
+                  >
+                    <option value='Active'>Active</option>
+                    <option value='Completed'>Completed</option>
+                    <option value='OnHold'>On Hold</option>
+                  </select>
                 </div>
 
-                <div className='grid grid-cols-2 gap-4'>
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                      Start Date *
-                    </label>
-                    <input
-                      type='date'
-                      name='startDate'
-                      value={formData.startDate}
-                      onChange={handleInputChange}
-                      className='input-field'
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>
+                    Priority
+                  </label>
+                  <select
+                    name='priority'
+                    value={formData.priority}
+                    onChange={handleInputChange}
+                    className='input-field'
+                  >
+                    <option value='Low'>Low</option>
+                    <option value='Medium'>Medium</option>
+                    <option value='High'>High</option>
+                  </select>
+                </div>
 
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                      End Date
-                    </label>
-                    <input
-                      type='date'
-                      name='endDate'
-                      value={formData.endDate || ''}
-                      onChange={handleInputChange}
-                      className='input-field'
-                    />
-                  </div>
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>
+                    Start Date *
+                  </label>
+                  <input
+                    type='date'
+                    name='startDate'
+                    value={formData.startDate}
+                    onChange={handleInputChange}
+                    className='input-field'
+                    required
+                  />
                 </div>
 
                 <div className='flex justify-end space-x-3 pt-4'>
