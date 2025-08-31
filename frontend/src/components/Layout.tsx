@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../state/authStore';
 import { useTheme } from '../contexts/ThemeContext';
+import { Chat } from './Chat';
 import {
   HomeIcon,
   FolderIcon,
@@ -13,6 +14,7 @@ import {
   ChartBarIcon,
   SunIcon,
   MoonIcon,
+  ChatBubbleLeftIcon,
 } from '@heroicons/react/24/outline';
 
 interface LayoutProps {
@@ -35,6 +37,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   return (
     <div className='flex h-screen bg-gray-100 dark:bg-gray-900'>
@@ -95,6 +98,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <div className='flex items-center space-x-2'>
               <button
+                onClick={() => setIsChatOpen(true)}
+                className='text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200'
+                title='Open Chat'
+              >
+                <ChatBubbleLeftIcon className='h-5 w-5' />
+              </button>
+              <button
                 onClick={toggleDarkMode}
                 className='text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200'
                 title={
@@ -123,6 +133,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className='flex-1 overflow-auto'>
         <main className='p-6'>{children}</main>
       </div>
+
+      {/* Chat Component */}
+      <Chat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 };

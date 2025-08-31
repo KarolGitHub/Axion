@@ -39,6 +39,8 @@ public class User
   public virtual ICollection<ProjectTask> AssignedTasks { get; set; } = new List<ProjectTask>();
   public virtual ICollection<Comment> Comments { get; set; } = new List<Comment>();
   public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
+  public virtual ICollection<Message> Messages { get; set; } = new List<Message>();
+  public virtual ICollection<ChatRoom> ChatRooms { get; set; } = new List<ChatRoom>();
 }
 
 public enum UserRole

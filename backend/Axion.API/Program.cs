@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Axion.API.Data;
 using Axion.API.Services;
+using Axion.API.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +51,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Add Authorization
 builder.Services.AddAuthorization();
 
+// Add SignalR
+builder.Services.AddSignalR();
+
 // Add Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 
@@ -70,6 +74,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ChatHub>("/chathub");
 
 // Ensure database is created
 using (var scope = app.Services.CreateScope())
