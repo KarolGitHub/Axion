@@ -26,6 +26,7 @@ const navigation = [
   { name: 'Resources', href: '/resources', icon: CalendarIcon },
   { name: 'Bookings', href: '/bookings', icon: CalendarIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
+  { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
   { name: 'Users', href: '/users', icon: UsersIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ];

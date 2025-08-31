@@ -16,6 +16,7 @@ import { Tasks } from './pages/Tasks';
 import { Resources } from './pages/Resources';
 import { Bookings } from './pages/Bookings';
 import { Analytics } from './pages/Analytics';
+import { Calendar } from './pages/Calendar';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,6 +97,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Analytics />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path='/calendar'
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Calendar />
                   </Layout>
                 </ProtectedRoute>
               }
