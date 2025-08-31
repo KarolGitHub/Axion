@@ -12,7 +12,9 @@ import {
   CreateTaskRequest,
   UpdateTaskRequest,
 } from '../services/taskService';
+import { projectService } from '../services/projectService';
 import { useAuthStore } from '../state/authStore';
+import { AIInsights } from '../components/AIInsights';
 
 const statusColumns = [
   { id: 'Todo', title: 'To Do', color: 'bg-gray-100' },
@@ -22,13 +24,14 @@ const statusColumns = [
 ];
 
 const priorityColors = {
-  High: 'bg-red-100 text-red-800',
-  Medium: 'bg-yellow-100 text-yellow-800',
   Low: 'bg-gray-100 text-gray-800',
+  Medium: 'bg-yellow-100 text-yellow-800',
+  High: 'bg-red-100 text-red-800',
 };
 
 export const Tasks: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -44,27 +47,28 @@ export const Tasks: React.FC = () => {
     createdById: '',
   });
   const [submitting, setSubmitting] = useState(false);
-
   const { user } = useAuthStore();
 
-  // Load tasks on component mount
   useEffect(() => {
-    loadTasks();
+    loadData();
   }, []);
 
-  // Set user ID when user is available
   useEffect(() => {
     if (user) {
       setFormData((prev) => ({ ...prev, createdById: user.id }));
     }
   }, [user]);
 
-  const loadTasks = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await taskService.getAll();
-      setTasks(data);
+      const [tasksData, projectsData] = await Promise.all([
+        taskService.getAll(),
+        projectService.getAll(),
+      ]);
+      setTasks(tasksData);
+      setProjects(projectsData);
     } catch (err) {
       setError('Failed to load tasks');
       console.error('Error loading tasks:', err);
@@ -96,7 +100,6 @@ export const Tasks: React.FC = () => {
       projectId: task.projectId,
       assignedToId: task.assignedTo,
       createdById: task.createdBy,
-      dueDate: task.dueDate,
     });
     setSelectedTask(task);
     setShowCreateModal(true);
@@ -116,43 +119,35 @@ export const Tasks: React.FC = () => {
 
   const handleDragStart = (e: React.DragEvent, task: Task) => {
     setDraggedTask(task);
-    e.dataTransfer.effectAllowed = 'move';
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDrop = async (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
-    if (draggedTask && draggedTask.status !== newStatus) {
-      try {
-        // Update task status in backend
-        await taskService.updateStatus(draggedTask.id, {
-          status: newStatus as Task['status'],
-        });
+    if (!draggedTask || draggedTask.status === newStatus) return;
 
-        // Update local state
-        setTasks(
-          tasks.map((task) =>
-            task.id === draggedTask.id
-              ? { ...task, status: newStatus as Task['status'] }
-              : task
-          )
-        );
-      } catch (err) {
-        setError('Failed to update task status');
-        console.error('Error updating task status:', err);
-      }
+    try {
+      await taskService.updateStatus(draggedTask.id, {
+        status: newStatus as any,
+      });
+      setTasks(
+        tasks.map((t) =>
+          t.id === draggedTask.id ? { ...t, status: newStatus as any } : t
+        )
+      );
+    } catch (err) {
+      setError('Failed to update task status');
+      console.error('Error updating task status:', err);
     }
     setDraggedTask(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim() || !formData.projectId || !formData.assignedToId)
-      return;
+    if (!formData.title.trim()) return;
 
     try {
       setSubmitting(true);
@@ -167,7 +162,6 @@ export const Tasks: React.FC = () => {
           priority: formData.priority,
           projectId: formData.projectId,
           assignedToId: formData.assignedToId,
-          dueDate: formData.dueDate,
         };
         await taskService.update(selectedTask.id, updateData);
 
@@ -203,6 +197,22 @@ export const Tasks: React.FC = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handlePriorityUpdate = async (
+    taskId: string,
+    priority: 'Low' | 'Medium' | 'High'
+  ) => {
+    try {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      await taskService.update(taskId, { priority });
+      setTasks(tasks.map((t) => (t.id === taskId ? { ...t, priority } : t)));
+    } catch (err) {
+      setError('Failed to update task priority');
+      console.error('Error updating task priority:', err);
+    }
+  };
+
   const getTasksByStatus = (status: string) => {
     return tasks.filter((task) => task.status === status);
   };
@@ -216,15 +226,15 @@ export const Tasks: React.FC = () => {
             <p className='mt-2 text-gray-600'>Loading tasks...</p>
           </div>
         </div>
-        <div className='grid grid-cols-1 gap-6 lg:grid-cols-4'>
+        <div className='grid grid-cols-1 gap-6 md:grid-cols-4'>
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className='card'>
               <div className='animate-pulse'>
-                <div className='h-4 bg-gray-200 rounded w-1/3 mb-4'></div>
+                <div className='h-4 bg-gray-200 rounded w-3/4 mb-4'></div>
                 <div className='space-y-3'>
-                  {[1, 2, 3].map((j) => (
-                    <div key={j} className='h-20 bg-gray-200 rounded'></div>
-                  ))}
+                  <div className='h-3 bg-gray-200 rounded w-1/2'></div>
+                  <div className='h-3 bg-gray-200 rounded w-2/3'></div>
+                  <div className='h-3 bg-gray-200 rounded w-1/3'></div>
                 </div>
               </div>
             </div>
@@ -241,7 +251,8 @@ export const Tasks: React.FC = () => {
         <div>
           <h1 className='text-3xl font-bold text-gray-900'>Tasks</h1>
           <p className='mt-2 text-gray-600'>
-            Manage your tasks with our Kanban board.
+            Manage your tasks with AI-powered insights and drag-and-drop
+            organization.
           </p>
         </div>
         <button
@@ -262,109 +273,142 @@ export const Tasks: React.FC = () => {
 
       {/* Stats */}
       <div className='grid grid-cols-1 gap-6 sm:grid-cols-4'>
-        {statusColumns.map((status) => (
-          <div key={status.id} className='card'>
-            <div className='flex items-center'>
-              <div className='flex-shrink-0'>
-                <div
-                  className={`h-8 w-8 ${status.color} rounded-full flex items-center justify-center`}
-                >
-                  <span className='text-gray-700 font-medium'>
-                    {getTasksByStatus(status.id).length}
-                  </span>
-                </div>
+        <div className='card'>
+          <div className='flex items-center'>
+            <div className='flex-shrink-0'>
+              <div className='h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center'>
+                <span className='text-white font-medium'>T</span>
               </div>
-              <div className='ml-4'>
-                <p className='text-sm font-medium text-gray-500'>
-                  {status.title}
-                </p>
-                <p className='text-2xl font-semibold text-gray-900'>
-                  {getTasksByStatus(status.id).length}
-                </p>
-              </div>
+            </div>
+            <div className='ml-4'>
+              <p className='text-sm font-medium text-gray-500'>Total Tasks</p>
+              <p className='text-2xl font-semibold text-gray-900'>
+                {tasks.length}
+              </p>
             </div>
           </div>
-        ))}
+        </div>
+        <div className='card'>
+          <div className='flex items-center'>
+            <div className='flex-shrink-0'>
+              <div className='h-8 w-8 bg-green-500 rounded-full flex items-center justify-center'>
+                <span className='text-white font-medium'>D</span>
+              </div>
+            </div>
+            <div className='ml-4'>
+              <p className='text-sm font-medium text-gray-500'>Done</p>
+              <p className='text-2xl font-semibold text-gray-900'>
+                {tasks.filter((t) => t.status === 'Done').length}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className='card'>
+          <div className='flex items-center'>
+            <div className='flex-shrink-0'>
+              <div className='h-8 w-8 bg-yellow-500 rounded-full flex items-center justify-center'>
+                <span className='text-white font-medium'>P</span>
+              </div>
+            </div>
+            <div className='ml-4'>
+              <p className='text-sm font-medium text-gray-500'>In Progress</p>
+              <p className='text-2xl font-semibold text-gray-900'>
+                {tasks.filter((t) => t.status === 'In Progress').length}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className='card'>
+          <div className='flex items-center'>
+            <div className='flex-shrink-0'>
+              <div className='h-8 w-8 bg-red-500 rounded-full flex items-center justify-center'>
+                <span className='text-white font-medium'>H</span>
+              </div>
+            </div>
+            <div className='ml-4'>
+              <p className='text-sm font-medium text-gray-500'>High Priority</p>
+              <p className='text-2xl font-semibold text-gray-900'>
+                {tasks.filter((t) => t.priority === 'High').length}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
+      {/* AI Insights */}
+      <AIInsights
+        tasks={tasks}
+        projects={projects}
+        onPriorityUpdate={handlePriorityUpdate}
+      />
+
       {/* Kanban Board */}
-      <div className='grid grid-cols-1 gap-6 lg:grid-cols-4'>
-        {statusColumns.map((status) => (
-          <div key={status.id} className='space-y-4'>
-            <div className='flex items-center justify-between'>
-              <h3 className='text-lg font-medium text-gray-900'>
-                {status.title}
-              </h3>
-              <span className='text-sm text-gray-500'>
-                {getTasksByStatus(status.id).length}
-              </span>
+      <div className='grid grid-cols-1 gap-6 md:grid-cols-4'>
+        {statusColumns.map((column) => (
+          <div key={column.id} className='space-y-4'>
+            <div className={`${column.color} p-4 rounded-lg`}>
+              <h3 className='font-medium text-gray-900'>{column.title}</h3>
+              <p className='text-sm text-gray-600'>
+                {getTasksByStatus(column.id).length} tasks
+              </p>
             </div>
             <div
-              className={`min-h-[500px] p-4 rounded-lg border-2 border-dashed ${
-                status.color
-              } ${draggedTask ? 'border-blue-400' : 'border-gray-300'}`}
+              className='min-h-64 p-4 bg-gray-50 rounded-lg'
               onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, status.id)}
+              onDrop={(e) => handleDrop(e, column.id)}
             >
-              {getTasksByStatus(status.id).map((task) => (
-                <div
-                  key={task.id}
-                  className='bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-3 cursor-move hover:shadow-md transition-shadow'
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, task)}
-                >
-                  <div className='flex items-start justify-between mb-2'>
-                    <h4 className='text-sm font-medium text-gray-900 line-clamp-2'>
-                      {task.title}
-                    </h4>
-                    <div className='flex space-x-1'>
-                      <button
-                        onClick={() => handleEditTask(task)}
-                        className='text-indigo-600 hover:text-indigo-900'
-                        title='Edit Task'
+              <div className='space-y-3'>
+                {getTasksByStatus(column.id).map((task) => (
+                  <div
+                    key={task.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task)}
+                    className='bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-move hover:shadow-md transition-shadow'
+                  >
+                    <div className='flex items-start justify-between mb-2'>
+                      <h4 className='font-medium text-gray-900 text-sm'>
+                        {task.title}
+                      </h4>
+                      <div className='flex space-x-1'>
+                        <button
+                          onClick={() => handleEditTask(task)}
+                          className='text-indigo-600 hover:text-indigo-900'
+                          title='Edit Task'
+                        >
+                          <PencilIcon className='h-3 w-3' />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTask(task.id)}
+                          className='text-red-600 hover:text-red-900'
+                          title='Delete Task'
+                        >
+                          <TrashIcon className='h-3 w-3' />
+                        </button>
+                      </div>
+                    </div>
+                    <p className='text-xs text-gray-600 mb-2 line-clamp-2'>
+                      {task.description}
+                    </p>
+                    <div className='flex items-center justify-between'>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          priorityColors[
+                            task.priority as keyof typeof priorityColors
+                          ]
+                        }`}
                       >
-                        <PencilIcon className='h-3 w-3' />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className='text-red-600 hover:text-red-900'
-                        title='Delete Task'
-                      >
-                        <TrashIcon className='h-3 w-3' />
-                      </button>
+                        {task.priority}
+                      </span>
+                      {task.dueDate && (
+                        <div className='flex items-center text-xs text-gray-500'>
+                          <CalendarIcon className='h-3 w-3 mr-1' />
+                          {new Date(task.dueDate).toLocaleDateString()}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <p className='text-xs text-gray-500 mb-3 line-clamp-2'>
-                    {task.description}
-                  </p>
-                  <div className='flex items-center justify-between'>
-                    <div className='flex items-center text-xs text-gray-500'>
-                      <UserIcon className='h-3 w-3 mr-1' />
-                      {task.assignedTo}
-                    </div>
-                    <span
-                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        priorityColors[
-                          task.priority as keyof typeof priorityColors
-                        ]
-                      }`}
-                    >
-                      {task.priority}
-                    </span>
-                  </div>
-                  {task.dueDate && (
-                    <div className='flex items-center text-xs text-gray-500 mt-2'>
-                      <CalendarIcon className='h-3 w-3 mr-1' />
-                      Due: {new Date(task.dueDate).toLocaleDateString()}
-                    </div>
-                  )}
-                </div>
-              ))}
-              {getTasksByStatus(status.id).length === 0 && (
-                <div className='text-center text-gray-500 text-sm py-8'>
-                  No tasks in this column
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           </div>
         ))}
@@ -402,64 +446,66 @@ export const Tasks: React.FC = () => {
                     name='description'
                     value={formData.description}
                     onChange={handleInputChange}
-                    className='input-field'
                     rows={3}
+                    className='input-field'
                   />
-                </div>
-
-                <div className='grid grid-cols-2 gap-4'>
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                      Status
-                    </label>
-                    <select
-                      name='status'
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className='input-field'
-                    >
-                      <option value='Todo'>To Do</option>
-                      <option value='In Progress'>In Progress</option>
-                      <option value='Review'>Review</option>
-                      <option value='Done'>Done</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className='block text-sm font-medium text-gray-700 mb-1'>
-                      Priority
-                    </label>
-                    <select
-                      name='priority'
-                      value={formData.priority}
-                      onChange={handleInputChange}
-                      className='input-field'
-                    >
-                      <option value='Low'>Low</option>
-                      <option value='Medium'>Medium</option>
-                      <option value='High'>High</option>
-                    </select>
-                  </div>
                 </div>
 
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Project ID *
+                    Status
                   </label>
-                  <input
-                    type='text'
+                  <select
+                    name='status'
+                    value={formData.status}
+                    onChange={handleInputChange}
+                    className='input-field'
+                  >
+                    <option value='Todo'>Todo</option>
+                    <option value='In Progress'>In Progress</option>
+                    <option value='Review'>Review</option>
+                    <option value='Done'>Done</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>
+                    Priority
+                  </label>
+                  <select
+                    name='priority'
+                    value={formData.priority}
+                    onChange={handleInputChange}
+                    className='input-field'
+                  >
+                    <option value='Low'>Low</option>
+                    <option value='Medium'>Medium</option>
+                    <option value='High'>High</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className='block text-sm font-medium text-gray-700 mb-1'>
+                    Project
+                  </label>
+                  <select
                     name='projectId'
                     value={formData.projectId}
                     onChange={handleInputChange}
                     className='input-field'
-                    placeholder='Enter project ID'
-                    required
-                  />
+                  >
+                    <option value=''>Select a project</option>
+                    {projects.map((project) => (
+                      <option key={project.id} value={project.id}>
+                        {project.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-1'>
-                    Assigned To ID *
+                    Assigned To
                   </label>
                   <input
                     type='text'
@@ -467,8 +513,7 @@ export const Tasks: React.FC = () => {
                     value={formData.assignedToId}
                     onChange={handleInputChange}
                     className='input-field'
-                    placeholder='Enter user ID'
-                    required
+                    placeholder='User ID'
                   />
                 </div>
 

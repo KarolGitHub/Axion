@@ -31,6 +31,8 @@ public class User
   public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
   // Navigation properties
+  public string? OrganizationId { get; set; }
+  public virtual Organization? Organization { get; set; }
   public virtual ICollection<Project> CreatedProjects { get; set; } = new List<Project>();
   public virtual ICollection<Project> AssignedProjects { get; set; } = new List<Project>();
   public virtual ICollection<ProjectTask> CreatedTasks { get; set; } = new List<ProjectTask>();

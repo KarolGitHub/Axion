@@ -22,6 +22,8 @@ public class Resource
   [Required]
   public bool IsAvailable { get; set; } = true;
 
+  public string? OrganizationId { get; set; }
+  public virtual Organization? Organization { get; set; }
   public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
   public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
