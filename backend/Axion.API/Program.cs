@@ -60,6 +60,7 @@ builder.Services.AddScoped<ISSOService, SSOService>();
 builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IThirdPartyIntegrationService, ThirdPartyIntegrationService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddHttpClient();
 
 var app = builder.Build();

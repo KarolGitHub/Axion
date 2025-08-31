@@ -45,6 +45,8 @@ public class User
   public virtual ICollection<SSOLogin> SSOLogins { get; set; } = new List<SSOLogin>();
   public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
   public virtual ICollection<ThirdPartyIntegration> CreatedIntegrations { get; set; } = new List<ThirdPartyIntegration>();
+  public virtual ICollection<Dashboard> CreatedDashboards { get; set; } = new List<Dashboard>();
+  public virtual ICollection<ResourceUtilization> ResourceUtilizations { get; set; } = new List<ResourceUtilization>();
 }
 
 public enum UserRole

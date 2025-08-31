@@ -15,9 +15,9 @@ import { Projects } from './pages/Projects';
 import { Tasks } from './pages/Tasks';
 import { Resources } from './pages/Resources';
 import { Bookings } from './pages/Bookings';
-import { Analytics } from './pages/Analytics';
 import { Calendar } from './pages/Calendar';
 import { IntegrationsPage } from './pages/Integrations';
+import AnalyticsPage from './pages/Analytics';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,7 +97,7 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Layout>
-                    <Analytics />
+                    <AnalyticsPage />
                   </Layout>
                 </ProtectedRoute>
               }

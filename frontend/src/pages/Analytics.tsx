@@ -1,557 +1,870 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ChartBarIcon,
-  DocumentArrowDownIcon,
-  CalendarIcon,
-  UsersIcon,
+  PresentationChartLineIcon,
+  CalculatorIcon,
   ClockIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  FolderIcon,
+  CurrencyDollarIcon,
+  BrainIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  EyeIcon,
+  DocumentChartBarIcon,
 } from '@heroicons/react/24/outline';
-import { Project, Task, Resource, Booking } from '../types';
-import { projectService } from '../services/projectService';
-import { taskService } from '../services/taskService';
-import { resourceService } from '../services/resourceService';
-import { bookingService } from '../services/bookingService';
-import { useAuthStore } from '../state/authStore';
+import {
+  analyticsService,
+  type Dashboard,
+  type AnalyticsMetric,
+  type BurndownChart,
+  type AgileMetrics,
+  type ResourceUtilization,
+  type ROITracking,
+  type PredictiveAnalytics,
+  type AnalyticsSummary,
+} from '../services/analyticsService';
 
-interface AnalyticsData {
-  projects: Project[];
-  tasks: Task[];
-  resources: Resource[];
-  bookings: Booking[];
-  loading: boolean;
-  error: string | null;
-}
+const AnalyticsPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState('summary');
+  const [selectedDashboard, setSelectedDashboard] = useState<Dashboard | null>(
+    null
+  );
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createModalType, setCreateModalType] = useState<string>('');
+  const queryClient = useQueryClient();
 
-export const Analytics: React.FC = () => {
-  const [data, setData] = useState<AnalyticsData>({
-    projects: [],
-    tasks: [],
-    resources: [],
-    bookings: [],
-    loading: true,
-    error: null,
+  // Queries
+  const { data: summary } = useQuery<AnalyticsSummary>({
+    queryKey: ['analytics-summary'],
+    queryFn: analyticsService.getAnalyticsSummary,
   });
-  const [selectedPeriod, setSelectedPeriod] = useState('30'); // days
-  const [exporting, setExporting] = useState(false);
 
-  const { user } = useAuthStore();
+  const { data: dashboards } = useQuery<Dashboard[]>({
+    queryKey: ['dashboards'],
+    queryFn: analyticsService.getDashboards,
+  });
 
-  useEffect(() => {
-    loadAnalyticsData();
-  }, [selectedPeriod]);
+  const { data: metrics } = useQuery<AnalyticsMetric[]>({
+    queryKey: ['metrics'],
+    queryFn: analyticsService.getMetrics,
+  });
 
-  const loadAnalyticsData = async () => {
-    try {
-      setData((prev) => ({ ...prev, loading: true, error: null }));
+  const { data: resourceUtilizations } = useQuery<ResourceUtilization[]>({
+    queryKey: ['resource-utilization'],
+    queryFn: () => analyticsService.getResourceUtilization(),
+  });
 
-      const [projects, tasks, resources, bookings] = await Promise.all([
-        projectService.getAll(),
-        taskService.getAll(),
-        resourceService.getAll(),
-        bookingService.getAll(),
-      ]);
+  const { data: roiTracking } = useQuery<ROITracking[]>({
+    queryKey: ['roi-tracking'],
+    queryFn: analyticsService.getROITracking,
+  });
 
-      setData({
-        projects,
-        tasks,
-        resources,
-        bookings,
-        loading: false,
-        error: null,
-      });
-    } catch (err) {
-      setData((prev) => ({
-        ...prev,
-        loading: false,
-        error: 'Failed to load analytics data',
-      }));
-      console.error('Error loading analytics:', err);
+  const { data: predictiveAnalytics } = useQuery<PredictiveAnalytics[]>({
+    queryKey: ['predictive-analytics'],
+    queryFn: analyticsService.getPredictiveAnalytics,
+  });
+
+  // Mutations
+  const deleteDashboardMutation = useMutation({
+    mutationFn: analyticsService.deleteDashboard,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboards'] });
+    },
+  });
+
+  const deleteMetricMutation = useMutation({
+    mutationFn: analyticsService.deleteMetric,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metrics'] });
+    },
+  });
+
+  const deleteUtilizationMutation = useMutation({
+    mutationFn: analyticsService.deleteResourceUtilization,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resource-utilization'] });
+    },
+  });
+
+  const deleteROIMutation = useMutation({
+    mutationFn: analyticsService.deleteROITracking,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roi-tracking'] });
+    },
+  });
+
+  const deletePredictiveMutation = useMutation({
+    mutationFn: analyticsService.deletePredictiveAnalytics,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['predictive-analytics'] });
+    },
+  });
+
+  const tabs = [
+    { id: 'summary', name: 'Summary', icon: DocumentChartBarIcon },
+    { id: 'dashboards', name: 'Dashboards', icon: ChartBarIcon },
+    { id: 'metrics', name: 'Metrics', icon: CalculatorIcon },
+    { id: 'utilization', name: 'Resource Utilization', icon: ClockIcon },
+    { id: 'roi', name: 'ROI Tracking', icon: CurrencyDollarIcon },
+    { id: 'predictive', name: 'Predictive Analytics', icon: BrainIcon },
+  ];
+
+  const handleDelete = (type: string, id: number) => {
+    if (window.confirm('Are you sure you want to delete this item?')) {
+      switch (type) {
+        case 'dashboard':
+          deleteDashboardMutation.mutate(id);
+          break;
+        case 'metric':
+          deleteMetricMutation.mutate(id);
+          break;
+        case 'utilization':
+          deleteUtilizationMutation.mutate(id);
+          break;
+        case 'roi':
+          deleteROIMutation.mutate(id);
+          break;
+        case 'predictive':
+          deletePredictiveMutation.mutate(id);
+          break;
+      }
     }
   };
 
-  // Calculate statistics
-  const getProjectStats = () => {
-    const total = data.projects.length;
-    const active = data.projects.filter((p) => p.status === 'Active').length;
-    const completed = data.projects.filter(
-      (p) => p.status === 'Completed'
-    ).length;
-    const onHold = data.projects.filter((p) => p.status === 'OnHold').length;
-
-    return { total, active, completed, onHold };
+  const openCreateModal = (type: string) => {
+    setCreateModalType(type);
+    setShowCreateModal(true);
   };
-
-  const getTaskStats = () => {
-    const total = data.tasks.length;
-    const todo = data.tasks.filter((t) => t.status === 'Todo').length;
-    const inProgress = data.tasks.filter(
-      (t) => t.status === 'In Progress'
-    ).length;
-    const review = data.tasks.filter((t) => t.status === 'Review').length;
-    const done = data.tasks.filter((t) => t.status === 'Done').length;
-
-    return { total, todo, inProgress, review, done };
-  };
-
-  const getResourceStats = () => {
-    const total = data.resources.length;
-    const available = data.resources.filter((r) => r.isAvailable).length;
-    const meetingRooms = data.resources.filter(
-      (r) => r.type === 'Meeting Room'
-    ).length;
-    const desks = data.resources.filter((r) => r.type === 'Desk').length;
-    const equipment = data.resources.filter(
-      (r) => r.type === 'Equipment'
-    ).length;
-
-    return { total, available, meetingRooms, desks, equipment };
-  };
-
-  const getBookingStats = () => {
-    const total = data.bookings.length;
-    const now = new Date();
-    const upcoming = data.bookings.filter(
-      (b) => new Date(b.startTime) > now
-    ).length;
-    const ongoing = data.bookings.filter((b) => {
-      const start = new Date(b.startTime);
-      const end = new Date(b.endTime);
-      return now >= start && now <= end;
-    }).length;
-    const completed = data.bookings.filter(
-      (b) => new Date(b.endTime) < now
-    ).length;
-
-    return { total, upcoming, ongoing, completed };
-  };
-
-  const getRecentActivity = () => {
-    const allItems = [
-      ...data.projects.map((p) => ({
-        ...p,
-        type: 'project',
-        date: p.createdAt,
-      })),
-      ...data.tasks.map((t) => ({ ...t, type: 'task', date: t.createdAt })),
-      ...data.bookings.map((b) => ({
-        ...b,
-        type: 'booking',
-        date: b.createdAt,
-      })),
-    ];
-
-    return allItems
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 10);
-  };
-
-  const exportToPDF = async () => {
-    setExporting(true);
-    try {
-      // Simulate PDF export
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      alert('PDF export functionality will be implemented with a PDF library');
-    } catch (err) {
-      console.error('Error exporting PDF:', err);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const exportToExcel = async () => {
-    setExporting(true);
-    try {
-      // Simulate Excel export
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      alert(
-        'Excel export functionality will be implemented with an Excel library'
-      );
-    } catch (err) {
-      console.error('Error exporting Excel:', err);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  if (data.loading) {
-    return (
-      <div className='space-y-6'>
-        <div className='flex items-center justify-between'>
-          <div>
-            <h1 className='text-3xl font-bold text-gray-900'>Analytics</h1>
-            <p className='mt-2 text-gray-600'>Loading analytics data...</p>
-          </div>
-        </div>
-        <div className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4'>
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className='card'>
-              <div className='animate-pulse'>
-                <div className='h-4 bg-gray-200 rounded w-3/4 mb-4'></div>
-                <div className='h-8 bg-gray-200 rounded w-1/2'></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const projectStats = getProjectStats();
-  const taskStats = getTaskStats();
-  const resourceStats = getResourceStats();
-  const bookingStats = getBookingStats();
-  const recentActivity = getRecentActivity();
 
   return (
-    <div className='space-y-6'>
-      {/* Header */}
-      <div className='flex items-center justify-between'>
-        <div>
-          <h1 className='text-3xl font-bold text-gray-900'>
-            Analytics Dashboard
-          </h1>
-          <p className='mt-2 text-gray-600'>
-            Comprehensive insights into your project performance and resource
-            utilization.
-          </p>
-        </div>
-        <div className='flex space-x-3'>
-          <select
-            value={selectedPeriod}
-            onChange={(e) => setSelectedPeriod(e.target.value)}
-            className='input-field w-auto'
-          >
-            <option value='7'>Last 7 days</option>
-            <option value='30'>Last 30 days</option>
-            <option value='90'>Last 90 days</option>
-            <option value='365'>Last year</option>
-          </select>
-          <button
-            onClick={exportToPDF}
-            disabled={exporting}
-            className='btn-secondary flex items-center'
-          >
-            <DocumentArrowDownIcon className='h-4 w-4 mr-2' />
-            {exporting ? 'Exporting...' : 'Export PDF'}
-          </button>
-          <button
-            onClick={exportToExcel}
-            disabled={exporting}
-            className='btn-primary flex items-center'
-          >
-            <DocumentArrowDownIcon className='h-4 w-4 mr-2' />
-            {exporting ? 'Exporting...' : 'Export Excel'}
-          </button>
-        </div>
+    <div className='p-6'>
+      <div className='mb-6'>
+        <h1 className='text-3xl font-bold text-gray-900 dark:text-white'>
+          Analytics & Reporting
+        </h1>
+        <p className='text-gray-600 dark:text-gray-400 mt-2'>
+          Advanced analytics, custom dashboards, and comprehensive reporting
+        </p>
       </div>
 
-      {/* Error Message */}
-      {data.error && (
-        <div className='bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded'>
-          {data.error}
+      {/* Tab Navigation */}
+      <div className='border-b border-gray-200 dark:border-gray-700 mb-6'>
+        <nav className='-mb-px flex space-x-8'>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <tab.icon className='h-5 w-5' />
+              <span>{tab.name}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Summary Tab */}
+      {activeTab === 'summary' && summary && (
+        <div className='space-y-6'>
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+            <SummaryCard
+              title='Dashboards'
+              value={summary.dashboardSummary.totalDashboards}
+              subtitle={`${summary.dashboardSummary.defaultDashboards} default`}
+              icon={ChartBarIcon}
+              color='blue'
+            />
+            <SummaryCard
+              title='Metrics'
+              value={summary.metricsSummary.totalMetrics}
+              subtitle={`${summary.metricsSummary.metricsCalculatedToday} calculated today`}
+              icon={CalculatorIcon}
+              color='green'
+            />
+            <SummaryCard
+              title='Active Sprints'
+              value={summary.agileSummary.activeSprints}
+              subtitle={`${summary.agileSummary.totalSprints} total sprints`}
+              icon={PresentationChartLineIcon}
+              color='purple'
+            />
+            <SummaryCard
+              title='Avg Utilization'
+              value={analyticsService.formatUtilizationRate(
+                summary.resourceSummary.averageUtilizationRate
+              )}
+              subtitle={`${summary.resourceSummary.totalUsers} users tracked`}
+              icon={ClockIcon}
+              color='orange'
+            />
+            <SummaryCard
+              title='Average ROI'
+              value={analyticsService.formatROI(summary.roiSummary.averageROI)}
+              subtitle={`${summary.roiSummary.totalProjects} projects`}
+              icon={CurrencyDollarIcon}
+              color='green'
+            />
+            <SummaryCard
+              title='Predictive Models'
+              value={summary.predictiveSummary.activeModels}
+              subtitle={`${summary.predictiveSummary.totalModels} total models`}
+              icon={BrainIcon}
+              color='indigo'
+            />
+          </div>
+
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+            <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
+                Agile Metrics
+              </h3>
+              <div className='space-y-3'>
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Total Story Points
+                  </span>
+                  <span className='font-medium'>
+                    {summary.agileSummary.totalStoryPoints}
+                  </span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Completed Story Points
+                  </span>
+                  <span className='font-medium'>
+                    {summary.agileSummary.completedStoryPoints}
+                  </span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Average Velocity
+                  </span>
+                  <span className='font-medium'>
+                    {summary.agileSummary.averageVelocity.toFixed(2)}
+                  </span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Average Burndown Rate
+                  </span>
+                  <span className='font-medium'>
+                    {summary.agileSummary.averageBurndownRate.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
+                Financial Overview
+              </h3>
+              <div className='space-y-3'>
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Total Investment
+                  </span>
+                  <span className='font-medium'>
+                    {analyticsService.formatCurrency(
+                      summary.roiSummary.totalInvestment
+                    )}
+                  </span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Total Return
+                  </span>
+                  <span className='font-medium'>
+                    {analyticsService.formatCurrency(
+                      summary.roiSummary.totalReturn
+                    )}
+                  </span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Total Labor Cost
+                  </span>
+                  <span className='font-medium'>
+                    {analyticsService.formatCurrency(
+                      summary.roiSummary.totalLaborCost
+                    )}
+                  </span>
+                </div>
+                <div className='flex justify-between'>
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    Total Infrastructure Cost
+                  </span>
+                  <span className='font-medium'>
+                    {analyticsService.formatCurrency(
+                      summary.roiSummary.totalInfrastructureCost
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Key Metrics */}
-      <div className='grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4'>
-        <div className='card'>
-          <div className='flex items-center'>
-            <div className='flex-shrink-0'>
-              <div className='h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center'>
-                <FolderIcon className='h-5 w-5 text-white' />
-              </div>
-            </div>
-            <div className='ml-4'>
-              <p className='text-sm font-medium text-gray-500'>
-                Total Projects
-              </p>
-              <p className='text-2xl font-semibold text-gray-900'>
-                {projectStats.total}
-              </p>
-            </div>
-          </div>
-          <div className='mt-4'>
-            <div className='flex justify-between text-sm'>
-              <span className='text-green-600'>
-                Active: {projectStats.active}
-              </span>
-              <span className='text-blue-600'>
-                Completed: {projectStats.completed}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className='card'>
-          <div className='flex items-center'>
-            <div className='flex-shrink-0'>
-              <div className='h-8 w-8 bg-green-500 rounded-full flex items-center justify-center'>
-                <CheckCircleIcon className='h-5 w-5 text-white' />
-              </div>
-            </div>
-            <div className='ml-4'>
-              <p className='text-sm font-medium text-gray-500'>Total Tasks</p>
-              <p className='text-2xl font-semibold text-gray-900'>
-                {taskStats.total}
-              </p>
-            </div>
-          </div>
-          <div className='mt-4'>
-            <div className='flex justify-between text-sm'>
-              <span className='text-blue-600'>Done: {taskStats.done}</span>
-              <span className='text-yellow-600'>
-                In Progress: {taskStats.inProgress}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className='card'>
-          <div className='flex items-center'>
-            <div className='flex-shrink-0'>
-              <div className='h-8 w-8 bg-purple-500 rounded-full flex items-center justify-center'>
-                <CalendarIcon className='h-5 w-5 text-white' />
-              </div>
-            </div>
-            <div className='ml-4'>
-              <p className='text-sm font-medium text-gray-500'>
-                Total Resources
-              </p>
-              <p className='text-2xl font-semibold text-gray-900'>
-                {resourceStats.total}
-              </p>
-            </div>
-          </div>
-          <div className='mt-4'>
-            <div className='flex justify-between text-sm'>
-              <span className='text-green-600'>
-                Available: {resourceStats.available}
-              </span>
-              <span className='text-blue-600'>
-                Rooms: {resourceStats.meetingRooms}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className='card'>
-          <div className='flex items-center'>
-            <div className='flex-shrink-0'>
-              <div className='h-8 w-8 bg-yellow-500 rounded-full flex items-center justify-center'>
-                <ClockIcon className='h-5 w-5 text-white' />
-              </div>
-            </div>
-            <div className='ml-4'>
-              <p className='text-sm font-medium text-gray-500'>
-                Total Bookings
-              </p>
-              <p className='text-2xl font-semibold text-gray-900'>
-                {bookingStats.total}
-              </p>
-            </div>
-          </div>
-          <div className='mt-4'>
-            <div className='flex justify-between text-sm'>
-              <span className='text-blue-600'>
-                Upcoming: {bookingStats.upcoming}
-              </span>
-              <span className='text-green-600'>
-                Ongoing: {bookingStats.ongoing}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
-      <div className='grid grid-cols-1 gap-6 lg:grid-cols-2'>
-        {/* Project Status Chart */}
-        <div className='card'>
-          <h3 className='text-lg font-medium text-gray-900 mb-4'>
-            Project Status Distribution
-          </h3>
-          <div className='space-y-3'>
-            <div className='flex items-center justify-between'>
-              <span className='text-sm text-gray-600'>Active</span>
-              <div className='flex items-center'>
-                <div className='w-32 bg-gray-200 rounded-full h-2 mr-3'>
-                  <div
-                    className='bg-green-500 h-2 rounded-full'
-                    style={{
-                      width: `${
-                        (projectStats.active / projectStats.total) * 100
-                      }%`,
-                    }}
-                  ></div>
-                </div>
-                <span className='text-sm font-medium'>
-                  {projectStats.active}
-                </span>
-              </div>
-            </div>
-            <div className='flex items-center justify-between'>
-              <span className='text-sm text-gray-600'>Completed</span>
-              <div className='flex items-center'>
-                <div className='w-32 bg-gray-200 rounded-full h-2 mr-3'>
-                  <div
-                    className='bg-blue-500 h-2 rounded-full'
-                    style={{
-                      width: `${
-                        (projectStats.completed / projectStats.total) * 100
-                      }%`,
-                    }}
-                  ></div>
-                </div>
-                <span className='text-sm font-medium'>
-                  {projectStats.completed}
-                </span>
-              </div>
-            </div>
-            <div className='flex items-center justify-between'>
-              <span className='text-sm text-gray-600'>On Hold</span>
-              <div className='flex items-center'>
-                <div className='w-32 bg-gray-200 rounded-full h-2 mr-3'>
-                  <div
-                    className='bg-yellow-500 h-2 rounded-full'
-                    style={{
-                      width: `${
-                        (projectStats.onHold / projectStats.total) * 100
-                      }%`,
-                    }}
-                  ></div>
-                </div>
-                <span className='text-sm font-medium'>
-                  {projectStats.onHold}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Task Status Chart */}
-        <div className='card'>
-          <h3 className='text-lg font-medium text-gray-900 mb-4'>
-            Task Status Distribution
-          </h3>
-          <div className='space-y-3'>
-            <div className='flex items-center justify-between'>
-              <span className='text-sm text-gray-600'>Done</span>
-              <div className='flex items-center'>
-                <div className='w-32 bg-gray-200 rounded-full h-2 mr-3'>
-                  <div
-                    className='bg-green-500 h-2 rounded-full'
-                    style={{
-                      width: `${(taskStats.done / taskStats.total) * 100}%`,
-                    }}
-                  ></div>
-                </div>
-                <span className='text-sm font-medium'>{taskStats.done}</span>
-              </div>
-            </div>
-            <div className='flex items-center justify-between'>
-              <span className='text-sm text-gray-600'>In Progress</span>
-              <div className='flex items-center'>
-                <div className='w-32 bg-gray-200 rounded-full h-2 mr-3'>
-                  <div
-                    className='bg-blue-500 h-2 rounded-full'
-                    style={{
-                      width: `${
-                        (taskStats.inProgress / taskStats.total) * 100
-                      }%`,
-                    }}
-                  ></div>
-                </div>
-                <span className='text-sm font-medium'>
-                  {taskStats.inProgress}
-                </span>
-              </div>
-            </div>
-            <div className='flex items-center justify-between'>
-              <span className='text-sm text-gray-600'>Todo</span>
-              <div className='flex items-center'>
-                <div className='w-32 bg-gray-200 rounded-full h-2 mr-3'>
-                  <div
-                    className='bg-gray-500 h-2 rounded-full'
-                    style={{
-                      width: `${(taskStats.todo / taskStats.total) * 100}%`,
-                    }}
-                  ></div>
-                </div>
-                <span className='text-sm font-medium'>{taskStats.todo}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className='card'>
-        <h3 className='text-lg font-medium text-gray-900 mb-4'>
-          Recent Activity
-        </h3>
-        <div className='space-y-3'>
-          {recentActivity.map((item, index) => (
-            <div
-              key={index}
-              className='flex items-center space-x-3 p-3 bg-gray-50 rounded-lg'
+      {/* Dashboards Tab */}
+      {activeTab === 'dashboards' && (
+        <div className='space-y-6'>
+          <div className='flex justify-between items-center'>
+            <h2 className='text-xl font-semibold text-gray-900 dark:text-white'>
+              Custom Dashboards
+            </h2>
+            <button
+              onClick={() => openCreateModal('dashboard')}
+              className='bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2'
             >
-              <div className='flex-shrink-0'>
-                {item.type === 'project' && (
-                  <FolderIcon className='h-5 w-5 text-blue-500' />
-                )}
-                {item.type === 'task' && (
-                  <CheckCircleIcon className='h-5 w-5 text-green-500' />
-                )}
-                {item.type === 'booking' && (
-                  <CalendarIcon className='h-5 w-5 text-purple-500' />
-                )}
-              </div>
-              <div className='flex-1 min-w-0'>
-                <p className='text-sm font-medium text-gray-900 truncate'>
-                  {item.type === 'project' && `Project "${item.name}" created`}
-                  {item.type === 'task' && `Task "${item.title}" created`}
-                  {item.type === 'booking' &&
-                    `Booking "${item.purpose}" created`}
-                </p>
-                <p className='text-xs text-gray-500'>
-                  {new Date(item.date).toLocaleDateString()} at{' '}
-                  {new Date(item.date).toLocaleTimeString()}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+              <PlusIcon className='h-5 w-5' />
+              <span>Create Dashboard</span>
+            </button>
+          </div>
 
-      {/* Resource Utilization */}
-      <div className='card'>
-        <h3 className='text-lg font-medium text-gray-900 mb-4'>
-          Resource Utilization
-        </h3>
-        <div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
-          <div className='text-center'>
-            <div className='text-2xl font-bold text-blue-600'>
-              {resourceStats.meetingRooms}
-            </div>
-            <div className='text-sm text-gray-600'>Meeting Rooms</div>
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+            {dashboards?.map((dashboard) => (
+              <div
+                key={dashboard.id}
+                className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'
+              >
+                <div className='flex justify-between items-start mb-4'>
+                  <div>
+                    <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                      {dashboard.name}
+                    </h3>
+                    {dashboard.description && (
+                      <p className='text-gray-600 dark:text-gray-400 text-sm mt-1'>
+                        {dashboard.description}
+                      </p>
+                    )}
+                  </div>
+                  {dashboard.isDefault && (
+                    <span className='bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full'>
+                      Default
+                    </span>
+                  )}
+                </div>
+
+                <div className='space-y-2 mb-4'>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Widgets
+                    </span>
+                    <span className='font-medium'>
+                      {dashboard.widgets.length}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Created by
+                    </span>
+                    <span className='font-medium'>{dashboard.createdBy}</span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Created
+                    </span>
+                    <span className='font-medium'>
+                      {analyticsService.formatDate(dashboard.createdAt)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className='flex space-x-2'>
+                  <button
+                    onClick={() => setSelectedDashboard(dashboard)}
+                    className='flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded text-sm flex items-center justify-center space-x-1'
+                  >
+                    <EyeIcon className='h-4 w-4' />
+                    <span>View</span>
+                  </button>
+                  <button
+                    onClick={() => openCreateModal('widget')}
+                    className='flex-1 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 px-3 py-2 rounded text-sm flex items-center justify-center space-x-1'
+                  >
+                    <PlusIcon className='h-4 w-4' />
+                    <span>Add Widget</span>
+                  </button>
+                  <button
+                    onClick={() => handleDelete('dashboard', dashboard.id)}
+                    className='bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm'
+                  >
+                    <TrashIcon className='h-4 w-4' />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className='text-center'>
-            <div className='text-2xl font-bold text-green-600'>
-              {resourceStats.desks}
-            </div>
-            <div className='text-sm text-gray-600'>Desks</div>
+        </div>
+      )}
+
+      {/* Metrics Tab */}
+      {activeTab === 'metrics' && (
+        <div className='space-y-6'>
+          <div className='flex justify-between items-center'>
+            <h2 className='text-xl font-semibold text-gray-900 dark:text-white'>
+              Analytics Metrics
+            </h2>
+            <button
+              onClick={() => openCreateModal('metric')}
+              className='bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2'
+            >
+              <PlusIcon className='h-5 w-5' />
+              <span>Create Metric</span>
+            </button>
           </div>
-          <div className='text-center'>
-            <div className='text-2xl font-bold text-purple-600'>
-              {resourceStats.equipment}
-            </div>
-            <div className='text-sm text-gray-600'>Equipment</div>
+
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+            {metrics?.map((metric) => (
+              <div
+                key={metric.id}
+                className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'
+              >
+                <div className='flex justify-between items-start mb-4'>
+                  <div>
+                    <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                      {metric.name}
+                    </h3>
+                    <p className='text-gray-600 dark:text-gray-400 text-sm mt-1'>
+                      Category: {metric.category}
+                    </p>
+                  </div>
+                </div>
+
+                <div className='space-y-2 mb-4'>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Last Calculated
+                    </span>
+                    <span className='font-medium'>
+                      {analyticsService.formatDateTime(metric.lastCalculated)}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Values
+                    </span>
+                    <span className='font-medium'>{metric.values.length}</span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Created
+                    </span>
+                    <span className='font-medium'>
+                      {analyticsService.formatDate(metric.createdAt)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className='flex space-x-2'>
+                  <button
+                    onClick={() => openCreateModal('calculate')}
+                    className='flex-1 bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-700 dark:text-green-300 px-3 py-2 rounded text-sm'
+                  >
+                    Calculate
+                  </button>
+                  <button
+                    onClick={() => handleDelete('metric', metric.id)}
+                    className='bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm'
+                  >
+                    <TrashIcon className='h-4 w-4' />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+      )}
+
+      {/* Resource Utilization Tab */}
+      {activeTab === 'utilization' && (
+        <div className='space-y-6'>
+          <div className='flex justify-between items-center'>
+            <h2 className='text-xl font-semibold text-gray-900 dark:text-white'>
+              Resource Utilization
+            </h2>
+            <button
+              onClick={() => openCreateModal('utilization')}
+              className='bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2'
+            >
+              <PlusIcon className='h-5 w-5' />
+              <span>Add Utilization</span>
+            </button>
+          </div>
+
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden'>
+            <table className='min-w-full divide-y divide-gray-200 dark:divide-gray-700'>
+              <thead className='bg-gray-50 dark:bg-gray-700'>
+                <tr>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                    User
+                  </th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                    Date
+                  </th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                    Hours Worked
+                  </th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                    Hours Allocated
+                  </th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                    Utilization Rate
+                  </th>
+                  <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className='bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700'>
+                {resourceUtilizations?.map((utilization) => (
+                  <tr key={utilization.id}>
+                    <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white'>
+                      {utilization.userName}
+                    </td>
+                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
+                      {analyticsService.formatDate(utilization.date)}
+                    </td>
+                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
+                      {utilization.hoursWorked}
+                    </td>
+                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
+                      {utilization.hoursAllocated}
+                    </td>
+                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
+                      {analyticsService.formatUtilizationRate(
+                        utilization.utilizationRate
+                      )}
+                    </td>
+                    <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400'>
+                      <button
+                        onClick={() =>
+                          handleDelete('utilization', utilization.id)
+                        }
+                        className='text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300'
+                      >
+                        <TrashIcon className='h-4 w-4' />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ROI Tracking Tab */}
+      {activeTab === 'roi' && (
+        <div className='space-y-6'>
+          <div className='flex justify-between items-center'>
+            <h2 className='text-xl font-semibold text-gray-900 dark:text-white'>
+              ROI Tracking
+            </h2>
+            <button
+              onClick={() => openCreateModal('roi')}
+              className='bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2'
+            >
+              <PlusIcon className='h-5 w-5' />
+              <span>Add ROI Tracking</span>
+            </button>
+          </div>
+
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+            {roiTracking?.map((roi) => (
+              <div
+                key={roi.id}
+                className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'
+              >
+                <div className='mb-4'>
+                  <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                    {roi.projectName}
+                  </h3>
+                  <p className='text-gray-600 dark:text-gray-400 text-sm mt-1'>
+                    Project ID: {roi.projectId}
+                  </p>
+                </div>
+
+                <div className='space-y-2 mb-4'>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Investment
+                    </span>
+                    <span className='font-medium'>
+                      {analyticsService.formatCurrency(roi.investment)}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Return
+                    </span>
+                    <span className='font-medium'>
+                      {analyticsService.formatCurrency(roi.return)}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      ROI
+                    </span>
+                    <span
+                      className={`font-medium ${
+                        roi.roi >= 0 ? 'text-green-600' : 'text-red-600'
+                      }`}
+                    >
+                      {analyticsService.formatROI(roi.roi)}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Labor Cost
+                    </span>
+                    <span className='font-medium'>
+                      {analyticsService.formatCurrency(roi.laborCost)}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Infrastructure Cost
+                    </span>
+                    <span className='font-medium'>
+                      {analyticsService.formatCurrency(roi.infrastructureCost)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className='flex space-x-2'>
+                  <button
+                    onClick={() => openCreateModal('roi-details')}
+                    className='flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-2 rounded text-sm'
+                  >
+                    View Details
+                  </button>
+                  <button
+                    onClick={() => handleDelete('roi', roi.id)}
+                    className='bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm'
+                  >
+                    <TrashIcon className='h-4 w-4' />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Predictive Analytics Tab */}
+      {activeTab === 'predictive' && (
+        <div className='space-y-6'>
+          <div className='flex justify-between items-center'>
+            <h2 className='text-xl font-semibold text-gray-900 dark:text-white'>
+              Predictive Analytics
+            </h2>
+            <button
+              onClick={() => openCreateModal('predictive')}
+              className='bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2'
+            >
+              <PlusIcon className='h-5 w-5' />
+              <span>Create Model</span>
+            </button>
+          </div>
+
+          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+            {predictiveAnalytics?.map((model) => (
+              <div
+                key={model.id}
+                className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'
+              >
+                <div className='mb-4'>
+                  <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                    {model.modelName}
+                  </h3>
+                  <p className='text-gray-600 dark:text-gray-400 text-sm mt-1'>
+                    Type: {model.type}
+                  </p>
+                </div>
+
+                <div className='space-y-2 mb-4'>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Accuracy
+                    </span>
+                    <span className='font-medium'>
+                      {(model.accuracy * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Last Trained
+                    </span>
+                    <span className='font-medium'>
+                      {analyticsService.formatDate(model.lastTrained)}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Predictions
+                    </span>
+                    <span className='font-medium'>
+                      {model.predictions.length}
+                    </span>
+                  </div>
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-gray-600 dark:text-gray-400'>
+                      Created
+                    </span>
+                    <span className='font-medium'>
+                      {analyticsService.formatDate(model.createdAt)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className='flex space-x-2'>
+                  <button
+                    onClick={() => openCreateModal('prediction')}
+                    className='flex-1 bg-green-100 hover:bg-green-200 dark:bg-green-900 dark:hover:bg-green-800 text-green-700 dark:text-green-300 px-3 py-2 rounded text-sm'
+                  >
+                    Make Prediction
+                  </button>
+                  <button
+                    onClick={() => handleDelete('predictive', model.id)}
+                    className='bg-red-100 hover:bg-red-200 dark:bg-red-900 dark:hover:bg-red-800 text-red-700 dark:text-red-300 px-3 py-2 rounded text-sm'
+                  >
+                    <TrashIcon className='h-4 w-4' />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+          <div className='bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md'>
+            <h3 className='text-lg font-semibold text-gray-900 dark:text-white mb-4'>
+              Create{' '}
+              {createModalType.charAt(0).toUpperCase() +
+                createModalType.slice(1)}
+            </h3>
+            <p className='text-gray-600 dark:text-gray-400 mb-4'>
+              This feature is coming soon. The backend API is ready, but the
+              form interface needs to be implemented.
+            </p>
+            <div className='flex space-x-3'>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className='flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded'
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dashboard Details Modal */}
+      {selectedDashboard && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+          <div className='bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto'>
+            <div className='flex justify-between items-start mb-4'>
+              <h3 className='text-lg font-semibold text-gray-900 dark:text-white'>
+                {selectedDashboard.name}
+              </h3>
+              <button
+                onClick={() => setSelectedDashboard(null)}
+                className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+              >
+                ×
+              </button>
+            </div>
+
+            {selectedDashboard.description && (
+              <p className='text-gray-600 dark:text-gray-400 mb-4'>
+                {selectedDashboard.description}
+              </p>
+            )}
+
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+              {selectedDashboard.widgets.map((widget) => (
+                <div
+                  key={widget.id}
+                  className='bg-gray-50 dark:bg-gray-700 rounded p-4'
+                >
+                  <h4 className='font-medium text-gray-900 dark:text-white mb-2'>
+                    {widget.name}
+                  </h4>
+                  <p className='text-sm text-gray-600 dark:text-gray-400'>
+                    Type: {widget.type}
+                  </p>
+                  <p className='text-sm text-gray-600 dark:text-gray-400'>
+                    Position: {widget.position}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Summary Card Component
+interface SummaryCardProps {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
+
+const SummaryCard: React.FC<SummaryCardProps> = ({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  color,
+}) => {
+  const colorClasses = {
+    blue: 'bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-400',
+    green: 'bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400',
+    purple:
+      'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-400',
+    orange:
+      'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400',
+    indigo:
+      'bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-400',
+    red: 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400',
+  };
+
+  return (
+    <div className='bg-white dark:bg-gray-800 rounded-lg shadow p-6'>
+      <div className='flex items-center'>
+        <div
+          className={`p-3 rounded-lg ${
+            colorClasses[color as keyof typeof colorClasses]
+          }`}
+        >
+          <Icon className='h-6 w-6' />
+        </div>
+        <div className='ml-4'>
+          <p className='text-sm font-medium text-gray-600 dark:text-gray-400'>
+            {title}
+          </p>
+          <p className='text-2xl font-semibold text-gray-900 dark:text-white'>
+            {value}
+          </p>
+          <p className='text-sm text-gray-500 dark:text-gray-400'>{subtitle}</p>
         </div>
       </div>
     </div>
   );
 };
+
+export default AnalyticsPage;

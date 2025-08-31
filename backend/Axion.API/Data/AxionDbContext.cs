@@ -46,6 +46,18 @@ public class AxionDbContext : DbContext
     public DbSet<GoogleWorkspaceUser> GoogleWorkspaceUsers { get; set; }
     public DbSet<GoogleWorkspaceGroup> GoogleWorkspaceGroups { get; set; }
 
+    // Analytics and reporting
+    public DbSet<Dashboard> Dashboards { get; set; }
+    public DbSet<DashboardWidget> DashboardWidgets { get; set; }
+    public DbSet<AnalyticsMetric> AnalyticsMetrics { get; set; }
+    public DbSet<MetricValue> MetricValues { get; set; }
+    public DbSet<BurndownChart> BurndownCharts { get; set; }
+    public DbSet<AgileMetrics> AgileMetrics { get; set; }
+    public DbSet<ResourceUtilization> ResourceUtilizations { get; set; }
+    public DbSet<ROITracking> ROITrackings { get; set; }
+    public DbSet<PredictiveAnalytics> PredictiveAnalytics { get; set; }
+    public DbSet<Prediction> Predictions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -392,5 +404,169 @@ public class AxionDbContext : DbContext
             .HasMany(u => u.Groups)
             .WithMany(g => g.Users)
             .UsingEntity(j => j.ToTable("GoogleWorkspaceUserGroups"));
+
+        // Dashboard configuration
+        modelBuilder.Entity<Dashboard>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Layout).IsRequired().HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.CreatedBy)
+                .WithMany(e => e.CreatedDashboards)
+                .HasForeignKey(e => e.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Dashboard widget configuration
+        modelBuilder.Entity<DashboardWidget>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Configuration).IsRequired().HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Dashboard)
+                .WithMany(e => e.Widgets)
+                .HasForeignKey(e => e.DashboardId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Analytics metric configuration
+        modelBuilder.Entity<AnalyticsMetric>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Category).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Query).IsRequired().HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Parameters).IsRequired().HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Metric value configuration
+        modelBuilder.Entity<MetricValue>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Value).HasPrecision(18, 4);
+            entity.Property(e => e.Context).HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Metric)
+                .WithMany(e => e.Values)
+                .HasForeignKey(e => e.MetricId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Burndown chart configuration
+        modelBuilder.Entity<BurndownChart>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.SprintData).IsRequired().HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Project)
+                .WithMany()
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Agile metrics configuration
+        modelBuilder.Entity<AgileMetrics>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SprintId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Velocity).HasPrecision(18, 4);
+            entity.Property(e => e.BurndownRate).HasPrecision(18, 4);
+
+            entity.HasOne(e => e.Project)
+                .WithMany()
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Resource utilization configuration
+        modelBuilder.Entity<ResourceUtilization>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HoursWorked).HasPrecision(18, 2);
+            entity.Property(e => e.HoursAllocated).HasPrecision(18, 2);
+            entity.Property(e => e.UtilizationRate).HasPrecision(18, 4);
+            entity.Property(e => e.Notes).HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.User)
+                .WithMany(e => e.ResourceUtilizations)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.UserId, e.Date }).IsUnique();
+        });
+
+        // ROI tracking configuration
+        modelBuilder.Entity<ROITracking>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProjectName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Investment).HasPrecision(18, 2);
+            entity.Property(e => e.Return).HasPrecision(18, 2);
+            entity.Property(e => e.ROI).HasPrecision(18, 4);
+            entity.Property(e => e.LaborCost).HasPrecision(18, 2);
+            entity.Property(e => e.InfrastructureCost).HasPrecision(18, 2);
+            entity.Property(e => e.OtherCosts).HasPrecision(18, 2);
+            entity.Property(e => e.Notes).HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Project)
+                .WithMany()
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Predictive analytics configuration
+        modelBuilder.Entity<PredictiveAnalytics>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ModelName).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.TrainingData).IsRequired().HasColumnType("nvarchar(max)");
+            entity.Property(e => e.ModelParameters).IsRequired().HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Accuracy).HasPrecision(18, 4);
+
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Prediction configuration
+        modelBuilder.Entity<Prediction>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.InputData).IsRequired().HasColumnType("nvarchar(max)");
+            entity.Property(e => e.PredictionResult).IsRequired().HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Confidence).HasPrecision(18, 4);
+
+            entity.HasOne(e => e.Model)
+                .WithMany(e => e.Predictions)
+                .HasForeignKey(e => e.ModelId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }
