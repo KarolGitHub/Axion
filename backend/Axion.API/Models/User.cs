@@ -44,6 +44,7 @@ public class User
   public virtual TwoFactorAuth? TwoFactorAuth { get; set; }
   public virtual ICollection<SSOLogin> SSOLogins { get; set; } = new List<SSOLogin>();
   public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
+  public virtual ICollection<ThirdPartyIntegration> CreatedIntegrations { get; set; } = new List<ThirdPartyIntegration>();
 }
 
 public enum UserRole

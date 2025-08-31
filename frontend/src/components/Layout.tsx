@@ -15,6 +15,7 @@ import {
   SunIcon,
   MoonIcon,
   ChatBubbleLeftIcon,
+  PuzzlePieceIcon,
 } from '@heroicons/react/24/outline';
 
 interface LayoutProps {
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Bookings', href: '/bookings', icon: CalendarIcon },
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
+  { name: 'Integrations', href: '/integrations', icon: PuzzlePieceIcon },
   { name: 'Users', href: '/users', icon: UsersIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ];

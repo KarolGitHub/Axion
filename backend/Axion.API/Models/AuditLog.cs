@@ -95,7 +95,15 @@ public enum AuditAction
   DataBackup,
   DataRestore,
   SecurityAlert,
-  ComplianceCheck
+  ComplianceCheck,
+  IntegrationCreated,
+  IntegrationUpdated,
+  IntegrationDeleted,
+  IntegrationSync,
+  IntegrationTest,
+  WebhookReceived,
+  WebhookProcessed,
+  WebhookFailed
 }
 
 public enum AuditEntityType
@@ -115,5 +123,6 @@ public enum AuditEntityType
   Permission,
   System,
   Security,
-  Compliance
+  Compliance,
+  Integration
 }

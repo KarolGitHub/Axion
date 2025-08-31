@@ -25,6 +25,27 @@ public class AxionDbContext : DbContext
     public DbSet<Resource> Resources { get; set; }
     public DbSet<Booking> Bookings { get; set; }
 
+    // Third-party integrations
+    public DbSet<ThirdPartyIntegration> ThirdPartyIntegrations { get; set; }
+    public DbSet<IntegrationEvent> IntegrationEvents { get; set; }
+    public DbSet<IntegrationSync> IntegrationSyncs { get; set; }
+
+    // GitHub integrations
+    public DbSet<GitHubRepository> GitHubRepositories { get; set; }
+    public DbSet<GitHubIssue> GitHubIssues { get; set; }
+    public DbSet<GitHubPullRequest> GitHubPullRequests { get; set; }
+
+    // Slack integrations
+    public DbSet<SlackWorkspace> SlackWorkspaces { get; set; }
+    public DbSet<SlackChannel> SlackChannels { get; set; }
+    public DbSet<SlackUser> SlackUsers { get; set; }
+    public DbSet<SlackMessage> SlackMessages { get; set; }
+
+    // Google Workspace integrations
+    public DbSet<GoogleWorkspaceDomain> GoogleWorkspaceDomains { get; set; }
+    public DbSet<GoogleWorkspaceUser> GoogleWorkspaceUsers { get; set; }
+    public DbSet<GoogleWorkspaceGroup> GoogleWorkspaceGroups { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -132,5 +153,244 @@ public class AxionDbContext : DbContext
             .HasMany(p => p.AssignedUsers)
             .WithMany(u => u.AssignedProjects)
             .UsingEntity(j => j.ToTable("ProjectUsers"));
+
+        // Third-party integration configuration
+        modelBuilder.Entity<ThirdPartyIntegration>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Provider).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.ClientId).IsRequired();
+            entity.Property(e => e.ClientSecret).IsRequired();
+            entity.Property(e => e.SyncSettings).HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.CreatedBy)
+                .WithMany(e => e.CreatedIntegrations)
+                .HasForeignKey(e => e.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Integration event configuration
+        modelBuilder.Entity<IntegrationEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.EventType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Payload).IsRequired().HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Status).HasMaxLength(20);
+
+            entity.HasOne(e => e.Integration)
+                .WithMany(e => e.Events)
+                .HasForeignKey(e => e.IntegrationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Integration sync configuration
+        modelBuilder.Entity<IntegrationSync>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SyncType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.EntityType).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Status).HasMaxLength(20);
+
+            entity.HasOne(e => e.Integration)
+                .WithMany(e => e.Syncs)
+                .HasForeignKey(e => e.IntegrationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // GitHub repository configuration
+        modelBuilder.Entity<GitHubRepository>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.FullName).HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Language).HasMaxLength(50);
+
+            entity.HasOne(e => e.Integration)
+                .WithMany()
+                .HasForeignKey(e => e.IntegrationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.IntegrationId, e.ExternalId }).IsUnique();
+        });
+
+        // GitHub issue configuration
+        modelBuilder.Entity<GitHubIssue>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.State).HasMaxLength(20);
+            entity.Property(e => e.Labels).HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Repository)
+                .WithMany(e => e.Issues)
+                .HasForeignKey(e => e.RepositoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.RepositoryId, e.ExternalId }).IsUnique();
+        });
+
+        // GitHub pull request configuration
+        modelBuilder.Entity<GitHubPullRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.State).HasMaxLength(20);
+            entity.Property(e => e.Reviewers).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Labels).HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Repository)
+                .WithMany(e => e.PullRequests)
+                .HasForeignKey(e => e.RepositoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.RepositoryId, e.ExternalId }).IsUnique();
+        });
+
+        // Slack workspace configuration
+        modelBuilder.Entity<SlackWorkspace>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Domain).HasMaxLength(100);
+
+            entity.HasOne(e => e.Integration)
+                .WithMany()
+                .HasForeignKey(e => e.IntegrationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.IntegrationId, e.ExternalId }).IsUnique();
+        });
+
+        // Slack channel configuration
+        modelBuilder.Entity<SlackChannel>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Topic).HasMaxLength(500);
+            entity.Property(e => e.Purpose).HasMaxLength(500);
+
+            entity.HasOne(e => e.Workspace)
+                .WithMany(e => e.Channels)
+                .HasForeignKey(e => e.WorkspaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.WorkspaceId, e.ExternalId }).IsUnique();
+        });
+
+        // Slack user configuration
+        modelBuilder.Entity<SlackUser>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.RealName).HasMaxLength(100);
+            entity.Property(e => e.Email).HasMaxLength(255);
+            entity.Property(e => e.Status).HasMaxLength(50);
+
+            entity.HasOne(e => e.Workspace)
+                .WithMany(e => e.Users)
+                .HasForeignKey(e => e.WorkspaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.WorkspaceId, e.ExternalId }).IsUnique();
+        });
+
+        // Slack message configuration
+        modelBuilder.Entity<SlackMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Text).IsRequired().HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Type).HasMaxLength(50);
+            entity.Property(e => e.Subtype).HasMaxLength(50);
+            entity.Property(e => e.Attachments).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Reactions).HasColumnType("nvarchar(max)");
+
+            entity.HasOne(e => e.Channel)
+                .WithMany(e => e.Messages)
+                .HasForeignKey(e => e.ChannelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ParentMessage)
+                .WithMany(e => e.Replies)
+                .HasForeignKey(e => e.ParentMessageId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => new { e.ChannelId, e.ExternalId }).IsUnique();
+        });
+
+        // Google Workspace domain configuration
+        modelBuilder.Entity<GoogleWorkspaceDomain>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Domain).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Name).HasMaxLength(100);
+
+            entity.HasOne(e => e.Integration)
+                .WithMany()
+                .HasForeignKey(e => e.IntegrationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.IntegrationId, e.Domain }).IsUnique();
+        });
+
+        // Google Workspace user configuration
+        modelBuilder.Entity<GoogleWorkspaceUser>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.FirstName).HasMaxLength(50);
+            entity.Property(e => e.LastName).HasMaxLength(50);
+            entity.Property(e => e.DisplayName).HasMaxLength(100);
+            entity.Property(e => e.Department).HasMaxLength(100);
+            entity.Property(e => e.JobTitle).HasMaxLength(100);
+            entity.Property(e => e.Location).HasMaxLength(100);
+
+            entity.HasOne(e => e.Domain)
+                .WithMany(e => e.Users)
+                .HasForeignKey(e => e.DomainId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.DomainId, e.ExternalId }).IsUnique();
+        });
+
+        // Google Workspace group configuration
+        modelBuilder.Entity<GoogleWorkspaceGroup>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Email).HasMaxLength(255);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Type).HasMaxLength(50);
+
+            entity.HasOne(e => e.Domain)
+                .WithMany(e => e.Groups)
+                .HasForeignKey(e => e.DomainId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.DomainId, e.ExternalId }).IsUnique();
+        });
+
+        // Many-to-many relationship between Google Workspace users and groups
+        modelBuilder.Entity<GoogleWorkspaceUser>()
+            .HasMany(u => u.Groups)
+            .WithMany(g => g.Users)
+            .UsingEntity(j => j.ToTable("GoogleWorkspaceUserGroups"));
     }
 }
