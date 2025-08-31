@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="..\build\Axion.API.props" />
+</Project>
