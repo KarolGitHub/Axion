@@ -41,6 +41,9 @@ public class User
   public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
   public virtual ICollection<Message> Messages { get; set; } = new List<Message>();
   public virtual ICollection<ChatRoom> ChatRooms { get; set; } = new List<ChatRoom>();
+  public virtual TwoFactorAuth? TwoFactorAuth { get; set; }
+  public virtual ICollection<SSOLogin> SSOLogins { get; set; } = new List<SSOLogin>();
+  public virtual ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 }
 
 public enum UserRole

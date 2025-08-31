@@ -14,6 +14,12 @@ public class AxionDbContext : DbContext
     public DbSet<Project> Projects { get; set; }
     public DbSet<ChatRoom> ChatRooms { get; set; }
     public DbSet<Message> Messages { get; set; }
+    public DbSet<SSOProvider> SSOProviders { get; set; }
+    public DbSet<SSOLogin> SSOLogins { get; set; }
+    public DbSet<TwoFactorAuth> TwoFactorAuths { get; set; }
+    public DbSet<TwoFactorCode> TwoFactorCodes { get; set; }
+    public DbSet<BackupCode> BackupCodes { get; set; }
+    public DbSet<AuditLog> AuditLogs { get; set; }
     public DbSet<ProjectTask> Tasks { get; set; }
     public DbSet<Comment> Comments { get; set; }
     public DbSet<Resource> Resources { get; set; }

@@ -56,6 +56,10 @@ builder.Services.AddSignalR();
 
 // Add Services
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ISSOService, SSOService>();
+builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
