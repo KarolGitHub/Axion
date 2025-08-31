@@ -10,8 +10,11 @@ import { useAuthStore } from './state/authStore';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { Projects } from './pages/Projects';
+import { Tasks } from './pages/Tasks';
+import { Resources } from './pages/Resources';
+import { Bookings } from './pages/Bookings';
 
-// Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -21,17 +24,11 @@ const queryClient = new QueryClient({
   },
 });
 
-// Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { isAuthenticated } = useAuthStore();
-
-  if (!isAuthenticated) {
-    return <Navigate to='/login' replace />;
-  }
-
-  return <>{children}</>;
+  return isAuthenticated ? <>{children}</> : <Navigate to='/login' replace />;
 };
 
 function App() {
@@ -55,14 +52,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className='p-6'>
-                    <h1 className='text-3xl font-bold text-gray-900'>
-                      Projects
-                    </h1>
-                    <p className='mt-2 text-gray-600'>
-                      Manage your projects here.
-                    </p>
-                  </div>
+                  <Projects />
                 </Layout>
               </ProtectedRoute>
             }
@@ -72,12 +62,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className='p-6'>
-                    <h1 className='text-3xl font-bold text-gray-900'>Tasks</h1>
-                    <p className='mt-2 text-gray-600'>
-                      View and manage your tasks.
-                    </p>
-                  </div>
+                  <Tasks />
                 </Layout>
               </ProtectedRoute>
             }
@@ -87,14 +72,17 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className='p-6'>
-                    <h1 className='text-3xl font-bold text-gray-900'>
-                      Resources
-                    </h1>
-                    <p className='mt-2 text-gray-600'>
-                      Book and manage resources.
-                    </p>
-                  </div>
+                  <Resources />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path='/bookings'
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Bookings />
                 </Layout>
               </ProtectedRoute>
             }
@@ -104,10 +92,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className='p-6'>
-                    <h1 className='text-3xl font-bold text-gray-900'>Users</h1>
-                    <p className='mt-2 text-gray-600'>Manage team members.</p>
-                  </div>
+                  <div>Users Management (Coming Soon)</div>
                 </Layout>
               </ProtectedRoute>
             }
@@ -117,14 +102,7 @@ function App() {
             element={
               <ProtectedRoute>
                 <Layout>
-                  <div className='p-6'>
-                    <h1 className='text-3xl font-bold text-gray-900'>
-                      Settings
-                    </h1>
-                    <p className='mt-2 text-gray-600'>
-                      Configure your preferences.
-                    </p>
-                  </div>
+                  <div>Settings (Coming Soon)</div>
                 </Layout>
               </ProtectedRoute>
             }

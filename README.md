@@ -334,12 +334,6 @@ Once the backend is running, you can access the Swagger documentation at:
 
 ---
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
 ## 🆘 Support
 
 If you encounter any issues or have questions:
