@@ -18,6 +18,7 @@ import { Bookings } from './pages/Bookings';
 import { Calendar } from './pages/Calendar';
 import { IntegrationsPage } from './pages/Integrations';
 import AnalyticsPage from './pages/Analytics';
+import PerformancePage from './pages/Performance';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -118,6 +119,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <IntegrationsPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path='/performance'
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PerformancePage />
                   </Layout>
                 </ProtectedRoute>
               }

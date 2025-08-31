@@ -31,7 +31,7 @@ const navigation = [
   { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
   { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
   { name: 'Integrations', href: '/integrations', icon: PuzzlePieceIcon },
-  { name: 'Analytics', href: '/analytics', icon: ChartBarIcon },
+  { name: 'Performance', href: '/performance', icon: CogIcon },
   { name: 'Users', href: '/users', icon: UsersIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ];
