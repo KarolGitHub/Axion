@@ -19,6 +19,7 @@ import { Calendar } from './pages/Calendar';
 import { IntegrationsPage } from './pages/Integrations';
 import AnalyticsPage from './pages/Analytics';
 import PerformancePage from './pages/Performance';
+import ScalingPage from './pages/Scaling';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -129,6 +130,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <PerformancePage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path='/scaling'
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ScalingPage />
                   </Layout>
                 </ProtectedRoute>
               }

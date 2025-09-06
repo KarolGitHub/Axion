@@ -63,8 +63,19 @@ public class AxionDbContext : DbContext
     public DbSet<PerformanceMetric> PerformanceMetrics { get; set; }
     public DbSet<DatabaseOptimization> DatabaseOptimizations { get; set; }
     public DbSet<ApiPerformanceLog> ApiPerformanceLogs { get; set; }
-    public DbSet<MemoryUsage> MemoryUsages { get; set; }
-    public DbSet<CpuUsage> CpuUsages { get; set; }
+            public DbSet<MemoryUsage> MemoryUsages { get; set; }
+        public DbSet<CpuUsage> CpuUsages { get; set; }
+
+        // Load Balancing & Auto-scaling
+        public DbSet<LoadBalancer> LoadBalancers { get; set; }
+        public DbSet<LoadBalancerInstance> LoadBalancerInstances { get; set; }
+        public DbSet<LoadBalancerRule> LoadBalancerRules { get; set; }
+        public DbSet<ScalingPolicy> ScalingPolicies { get; set; }
+        public DbSet<ScalingEvent> ScalingEvents { get; set; }
+        public DbSet<AutoScalingGroup> AutoScalingGroups { get; set; }
+        public DbSet<AutoScalingInstance> AutoScalingInstances { get; set; }
+        public DbSet<LoadBalancerMetrics> LoadBalancerMetrics { get; set; }
+        public DbSet<ScalingMetrics> ScalingMetrics { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -674,6 +685,146 @@ public class AxionDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Load Balancing & Auto-scaling configurations
+        modelBuilder.Entity<LoadBalancer>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Algorithm).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Configuration).HasColumnType("nvarchar(max)");
+            entity.HasIndex(e => new { e.Name, e.OrganizationId }).IsUnique();
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<LoadBalancerInstance>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.InstanceId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.IpAddress).IsRequired().HasMaxLength(15);
+            entity.Property(e => e.ResponseTime).HasPrecision(10, 2);
+            entity.HasIndex(e => new { e.InstanceId, e.LoadBalancerId }).IsUnique();
+            entity.HasOne(e => e.LoadBalancer)
+                .WithMany(e => e.Instances)
+                .HasForeignKey(e => e.LoadBalancerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LoadBalancerRule>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Condition).IsRequired().HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Action).IsRequired().HasColumnType("nvarchar(max)");
+            entity.HasIndex(e => new { e.Name, e.LoadBalancerId }).IsUnique();
+            entity.HasOne(e => e.LoadBalancer)
+                .WithMany(e => e.Rules)
+                .HasForeignKey(e => e.LoadBalancerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ScalingPolicy>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.MetricName).IsRequired();
+            entity.Property(e => e.Threshold).HasPrecision(10, 2);
+            entity.Property(e => e.Conditions).HasColumnType("nvarchar(max)");
+            entity.HasIndex(e => new { e.Name, e.OrganizationId }).IsUnique();
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ScalingEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Reason).IsRequired();
+            entity.Property(e => e.MetricValue).HasPrecision(10, 2);
+            entity.Property(e => e.Threshold).HasPrecision(10, 2);
+            entity.Property(e => e.ErrorMessage).HasColumnType("nvarchar(max)");
+            entity.HasOne(e => e.ScalingPolicy)
+                .WithMany(e => e.ScalingEvents)
+                .HasForeignKey(e => e.ScalingPolicyId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AutoScalingGroup>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.LaunchTemplate).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.VpcConfig).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.Tags).HasColumnType("nvarchar(max)");
+            entity.HasIndex(e => new { e.Name, e.OrganizationId }).IsUnique();
+            entity.HasOne(e => e.Organization)
+                .WithMany()
+                .HasForeignKey(e => e.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<AutoScalingInstance>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.InstanceId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.IpAddress).IsRequired().HasMaxLength(15);
+            entity.Property(e => e.PrivateIpAddress).HasMaxLength(15);
+            entity.Property(e => e.InstanceType).HasMaxLength(50);
+            entity.Property(e => e.AvailabilityZone).HasMaxLength(50);
+            entity.Property(e => e.TerminationReason).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.CpuUtilization).HasPrecision(5, 2);
+            entity.Property(e => e.MemoryUtilization).HasPrecision(5, 2);
+            entity.HasIndex(e => new { e.InstanceId, e.AutoScalingGroupId }).IsUnique();
+            entity.HasOne(e => e.AutoScalingGroup)
+                .WithMany(e => e.Instances)
+                .HasForeignKey(e => e.AutoScalingGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<LoadBalancerMetrics>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RequestCount).HasPrecision(10, 2);
+            entity.Property(e => e.TargetResponseTime).HasPrecision(10, 2);
+            entity.Property(e => e.HealthyHostCount).HasPrecision(5, 2);
+            entity.Property(e => e.UnhealthyHostCount).HasPrecision(5, 2);
+            entity.Property(e => e.TargetConnectionErrorCount).HasPrecision(10, 2);
+            entity.Property(e => e.TargetTLSNegotiationErrorCount).HasPrecision(10, 2);
+            entity.Property(e => e.RequestCountPerTarget).HasPrecision(10, 2);
+            entity.Property(e => e.UnHealthyHostCount).HasPrecision(5, 2);
+            entity.HasIndex(e => new { e.LoadBalancerId, e.RecordedAt });
+            entity.HasOne(e => e.LoadBalancer)
+                .WithMany()
+                .HasForeignKey(e => e.LoadBalancerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ScalingMetrics>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CpuUtilization).HasPrecision(5, 2);
+            entity.Property(e => e.MemoryUtilization).HasPrecision(5, 2);
+            entity.Property(e => e.NetworkIn).HasPrecision(10, 2);
+            entity.Property(e => e.NetworkOut).HasPrecision(10, 2);
+            entity.Property(e => e.DiskReadOps).HasPrecision(10, 2);
+            entity.Property(e => e.DiskWriteOps).HasPrecision(10, 2);
+            entity.HasIndex(e => new { e.AutoScalingGroupId, e.RecordedAt });
+            entity.HasOne(e => e.AutoScalingGroup)
+                .WithMany()
+                .HasForeignKey(e => e.AutoScalingGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
