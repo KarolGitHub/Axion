@@ -6,6 +6,24 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Observability: OpenTelemetry Tracing & Metrics
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317";
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService(serviceName: "Axion.UserService"))
+    .WithTracing(t => t
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation()
+        .AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint))
+        .AddConsoleExporter())
+    .WithMetrics(m => m
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddProcessInstrumentation()
+        .AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint))
+        .AddConsoleExporter());
+
 // Add services to the container.
 builder.Services.AddControllers();
 
