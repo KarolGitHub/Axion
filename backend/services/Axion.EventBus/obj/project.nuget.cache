@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dgSpecHash": "YvxHwNRCx/tPotdYleq7eR5+R+b9O3Ql1Kb+eKpHLy3O/dNfdrFcBag0UU8eBRHEj0fKj4a2s09SESUBdVBDwg==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\karol\\Documents\\dev\\projects\\Axion\\backend\\services\\Axion.EventBus\\Axion.EventBus.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\karol\\.nuget\\packages\\microsoft.aspnetcore.openapi\\7.0.5\\microsoft.aspnetcore.openapi.7.0.5.nupkg.sha512",
+    "C:\\Users\\karol\\.nuget\\packages\\microsoft.extensions.apidescription.server\\6.0.5\\microsoft.extensions.apidescription.server.6.0.5.nupkg.sha512",
+    "C:\\Users\\karol\\.nuget\\packages\\microsoft.openapi\\1.4.3\\microsoft.openapi.1.4.3.nupkg.sha512",
+    "C:\\Users\\karol\\.nuget\\packages\\swashbuckle.aspnetcore\\6.4.0\\swashbuckle.aspnetcore.6.4.0.nupkg.sha512",
+    "C:\\Users\\karol\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.4.0\\swashbuckle.aspnetcore.swagger.6.4.0.nupkg.sha512",
+    "C:\\Users\\karol\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\6.4.0\\swashbuckle.aspnetcore.swaggergen.6.4.0.nupkg.sha512",
+    "C:\\Users\\karol\\.nuget\\packages\\swashbuckle.aspnetcore.swaggerui\\6.4.0\\swashbuckle.aspnetcore.swaggerui.6.4.0.nupkg.sha512"
+  ],
+  "logs": []
+}

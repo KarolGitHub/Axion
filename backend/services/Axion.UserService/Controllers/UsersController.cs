@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Axion.Shared.Models;
 using Axion.Shared.DTOs;
+using Axion.Shared.Events;
+using Axion.Shared.Interfaces;
 
 namespace Axion.UserService.Controllers
 {
@@ -13,10 +15,14 @@ namespace Axion.UserService.Controllers
   public class UsersController : ControllerBase
   {
     private readonly UserDbContext _context;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(UserDbContext context)
+    public UsersController(UserDbContext context, IEventPublisher eventPublisher, ILogger<UsersController> logger)
     {
       _context = context;
+      _eventPublisher = eventPublisher;
+      _logger = logger;
     }
 
     private int GetOrganizationId()
@@ -151,6 +157,27 @@ namespace Axion.UserService.Controllers
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
+
+        // Publish UserCreated event
+        var userCreatedEvent = new UserCreatedEvent
+        {
+          UserId = user.Id,
+          FirstName = user.FirstName,
+          LastName = user.LastName,
+          Email = user.Email,
+          Role = user.Role,
+          OrganizationId = user.OrganizationId,
+          Source = "UserService"
+        };
+
+        try
+        {
+          await _eventPublisher.PublishAsync(userCreatedEvent);
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, "Failed to publish UserCreated event for user {UserId}", user.Id);
+        }
 
         var userResponse = new UserResponse
         {
